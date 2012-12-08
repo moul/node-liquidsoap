@@ -1,16 +1,18 @@
-var require = function (file, cwd) {
+(function(){var require = function (file, cwd) {
     var resolved = require.resolve(file, cwd || '/');
     var mod = require.modules[resolved];
     if (!mod) throw new Error(
         'Failed to resolve module ' + file + ', tried ' + resolved
     );
-    var res = mod._cached ? mod._cached : mod();
+    var cached = require.cache[resolved];
+    var res = cached? cached.exports : mod();
     return res;
-}
+};
 
 require.paths = [];
 require.modules = {};
-require.extensions = [".js",".coffee"];
+require.cache = {};
+require.extensions = [".js",".coffee",".json"];
 
 require._core = {
     'assert': true,
@@ -41,6 +43,7 @@ require.resolve = (function () {
         throw new Error("Cannot find module '" + x + "'");
         
         function loadAsFileSync (x) {
+            x = path.normalize(x);
             if (require.modules[x]) {
                 return x;
             }
@@ -53,7 +56,7 @@ require.resolve = (function () {
         
         function loadAsDirectorySync (x) {
             x = x.replace(/\/+$/, '');
-            var pkgfile = x + '/package.json';
+            var pkgfile = path.normalize(x + '/package.json');
             if (require.modules[pkgfile]) {
                 var pkg = require.modules[pkgfile]();
                 var b = pkg.browserify;
@@ -118,7 +121,7 @@ require.alias = function (from, to) {
     
     var keys = (Object.keys || function (obj) {
         var res = [];
-        for (var key in obj) res.push(key)
+        for (var key in obj) res.push(key);
         return res;
     })(require.modules);
     
@@ -134,80 +137,66 @@ require.alias = function (from, to) {
     }
 };
 
-require.define = function (filename, fn) {
-    var dirname = require._core[filename]
-        ? ''
-        : require.modules.path().dirname(filename)
-    ;
+(function () {
+    var process = {};
+    var global = typeof window !== 'undefined' ? window : {};
+    var definedProcess = false;
     
-    var require_ = function (file) {
-        return require(file, dirname)
-    };
-    require_.resolve = function (name) {
-        return require.resolve(name, dirname);
-    };
-    require_.modules = require.modules;
-    require_.define = require.define;
-    var module_ = { exports : {} };
-    
-    require.modules[filename] = function () {
-        require.modules[filename]._cached = module_.exports;
-        fn.call(
-            module_.exports,
-            require_,
-            module_,
-            module_.exports,
-            dirname,
-            filename
-        );
-        require.modules[filename]._cached = module_.exports;
-        return module_.exports;
-    };
-};
-
-if (typeof process === 'undefined') process = {};
-
-if (!process.nextTick) process.nextTick = (function () {
-    var queue = [];
-    var canPost = typeof window !== 'undefined'
-        && window.postMessage && window.addEventListener
-    ;
-    
-    if (canPost) {
-        window.addEventListener('message', function (ev) {
-            if (ev.source === window && ev.data === 'browserify-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
-    }
-    
-    return function (fn) {
-        if (canPost) {
-            queue.push(fn);
-            window.postMessage('browserify-tick', '*');
+    require.define = function (filename, fn) {
+        if (!definedProcess && require.modules.__browserify_process) {
+            process = require.modules.__browserify_process();
+            definedProcess = true;
         }
-        else setTimeout(fn, 0);
+        
+        var dirname = require._core[filename]
+            ? ''
+            : require.modules.path().dirname(filename)
+        ;
+        
+        var require_ = function (file) {
+            var requiredModule = require(file, dirname);
+            var cached = require.cache[require.resolve(file, dirname)];
+
+            if (cached && cached.parent === null) {
+                cached.parent = module_;
+            }
+
+            return requiredModule;
+        };
+        require_.resolve = function (name) {
+            return require.resolve(name, dirname);
+        };
+        require_.modules = require.modules;
+        require_.define = require.define;
+        require_.cache = require.cache;
+        var module_ = {
+            id : filename,
+            filename: filename,
+            exports : {},
+            loaded : false,
+            parent: null
+        };
+        
+        require.modules[filename] = function () {
+            require.cache[filename] = module_;
+            fn.call(
+                module_.exports,
+                require_,
+                module_,
+                module_.exports,
+                dirname,
+                filename,
+                process,
+                global
+            );
+            module_.loaded = true;
+            return module_.exports;
+        };
     };
 })();
 
-if (!process.title) process.title = 'browser';
 
-if (!process.binding) process.binding = function (name) {
-    if (name === 'evals') return require('vm')
-    else throw new Error('No such module')
-};
-
-if (!process.cwd) process.cwd = function () { return '.' };
-
-if (!process.env) process.env = {};
-if (!process.argv) process.argv = [];
-
-require.define("path", function (require, module, exports, __dirname, __filename) {
-function filter (xs, fn) {
+require.define("path",function(require,module,exports,__dirname,__filename,process,global){function filter (xs, fn) {
     var res = [];
     for (var i = 0; i < xs.length; i++) {
         if (fn(xs[i], i, xs)) res.push(xs[i]);
@@ -344,8 +333,70 @@ exports.extname = function(path) {
 
 });
 
-require.define("util", function (require, module, exports, __dirname, __filename) {
-var events = require('events');
+require.define("__browserify_process",function(require,module,exports,__dirname,__filename,process,global){var process = module.exports = {};
+
+process.nextTick = (function () {
+    var canSetImmediate = typeof window !== 'undefined'
+        && window.setImmediate;
+    var canPost = typeof window !== 'undefined'
+        && window.postMessage && window.addEventListener
+    ;
+
+    if (canSetImmediate) {
+        return function (f) { return window.setImmediate(f) };
+    }
+
+    if (canPost) {
+        var queue = [];
+        window.addEventListener('message', function (ev) {
+            if (ev.source === window && ev.data === 'browserify-tick') {
+                ev.stopPropagation();
+                if (queue.length > 0) {
+                    var fn = queue.shift();
+                    fn();
+                }
+            }
+        }, true);
+
+        return function nextTick(fn) {
+            queue.push(fn);
+            window.postMessage('browserify-tick', '*');
+        };
+    }
+
+    return function nextTick(fn) {
+        setTimeout(fn, 0);
+    };
+})();
+
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+
+process.binding = function (name) {
+    if (name === 'evals') return (require)('vm')
+    else throw new Error('No such module. (Possibly not yet loaded)')
+};
+
+(function () {
+    var cwd = '/';
+    var path;
+    process.cwd = function () { return cwd };
+    process.chdir = function (dir) {
+        if (!path) path = require('path');
+        cwd = path.resolve(dir, cwd);
+    };
+})();
+
+});
+
+require.define("util",function(require,module,exports,__dirname,__filename,process,global){var events = require('events');
+
+exports.isArray = isArray;
+exports.isDate = function(obj){return Object.prototype.toString.call(obj) === '[object Date]'};
+exports.isRegExp = function(obj){return Object.prototype.toString.call(obj) === '[object RegExp]'};
+
 
 exports.print = function () {};
 exports.puts = function () {};
@@ -658,10 +709,43 @@ exports.inherits = function(ctor, superCtor) {
   });
 };
 
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (typeof f !== 'string') {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(exports.inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j': return JSON.stringify(args[i++]);
+      default:
+        return x;
+    }
+  });
+  for(var x = args[i]; i < len; x = args[++i]){
+    if (x === null || typeof x !== 'object') {
+      str += ' ' + x;
+    } else {
+      str += ' ' + exports.inspect(x);
+    }
+  }
+  return str;
+};
+
 });
 
-require.define("events", function (require, module, exports, __dirname, __filename) {
-if (!process.EventEmitter) process.EventEmitter = function () {};
+require.define("events",function(require,module,exports,__dirname,__filename,process,global){if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
 var isArray = typeof Array.isArray === 'function'
@@ -670,6 +754,13 @@ var isArray = typeof Array.isArray === 'function'
         return Object.prototype.toString.call(xs) === '[object Array]'
     }
 ;
+function indexOf (xs, x) {
+    if (xs.indexOf) return xs.indexOf(x);
+    for (var i = 0; i < xs.length; i++) {
+        if (x === xs[i]) return i;
+    }
+    return -1;
+}
 
 // By default EventEmitters will print a warning if more than
 // 10 listeners are added to it. This is a useful default which
@@ -806,7 +897,7 @@ EventEmitter.prototype.removeListener = function(type, listener) {
   var list = this._events[type];
 
   if (isArray(list)) {
-    var i = list.indexOf(listener);
+    var i = indexOf(list, listener);
     if (i < 0) return this;
     list.splice(i, 1);
     if (list.length == 0)
@@ -835,8 +926,7 @@ EventEmitter.prototype.listeners = function(type) {
 
 });
 
-require.define("/request.coffee", function (require, module, exports, __dirname, __filename) {
-(function() {
+require.define("/tmp/request.coffee",function(require,module,exports,__dirname,__filename,process,global){(function() {
   var Blank, Client, Fallback, Input, Metadata, Output, Request, Single, chain, changeMetadata, checkState, client, opts, pushRequest, sources, _ref;
 
   _ref = require("./liquidsoap"), Client = _ref.Client, Request = _ref.Request, Output = _ref.Output, Input = _ref.Input, Metadata = _ref.Metadata, Fallback = _ref.Fallback, Single = _ref.Single, Blank = _ref.Blank;
@@ -916,15 +1006,23 @@ require.define("/request.coffee", function (require, module, exports, __dirname,
       return source.set_metadata({
         artist: value
       }, function(err) {
-        if (err != null) return "Error setting metadata.";
-        if (next != null) return setTimeout(next, 500);
+        if (err != null) {
+          return "Error setting metadata.";
+        }
+        if (next != null) {
+          return setTimeout(next, 500);
+        }
       });
     };
     get_meta = function(next) {
       return source.get_metadata(function(err, res) {
-        if (err != null) return console.log("Error grabbing metadata");
+        if (err != null) {
+          return console.log("Error grabbing metadata");
+        }
         console.log("Latest metadata on " + source.name + ": \n" + (JSON.stringify(res, void 0, 2)));
-        if (next != null) return setTimeout(next, 500);
+        if (next != null) {
+          return setTimeout(next, 500);
+        }
       });
     };
     cb = function() {
@@ -941,11 +1039,15 @@ require.define("/request.coffee", function (require, module, exports, __dirname,
 
   checkState = function(source, fn) {
     return source.status(function(err, res) {
-      if (err != null) return fn(err);
+      if (err != null) {
+        return fn(err);
+      }
       console.log("Current status for " + source.name + ":");
       console.dir(res);
       return source.start(function(err) {
-        if (err != null) return fn(err);
+        if (err != null) {
+          return fn(err);
+        }
         return source.status(function(err, res) {
           console.log("New status for " + source.name + ":");
           console.dir(res);
@@ -1039,10 +1141,11 @@ require.define("/request.coffee", function (require, module, exports, __dirname,
 
 });
 
-require.define("/liquidsoap.coffee", function (require, module, exports, __dirname, __filename) {
-(function() {
-  var Source, Stateful, b64, chain, mixin, stringify, _ref;
-  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
+require.define("/tmp/liquidsoap.coffee",function(require,module,exports,__dirname,__filename,process,global){(function() {
+  var Source, Stateful, b64, chain, mixin, stringify, _ref,
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   _ref = require("./utils"), b64 = _ref.b64, chain = _ref.chain, stringify = _ref.stringify, mixin = _ref.mixin;
 
@@ -1051,6 +1154,7 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
     function Client(opts) {
       this.opts = opts;
       this.http_request = __bind(this.http_request, this);
+
       this.auth = opts.auth;
       this.host = opts.host;
       this.scheme = opts.scheme || "http";
@@ -1114,33 +1218,41 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
     };
 
     Client.prototype.create = function(sources, fn) {
-      var exec, res;
-      var _this = this;
+      var exec, res,
+        _this = this;
       res = {};
       exec = function(params, name, fn) {
-        if (params == null) return fn(null);
+        if (params == null) {
+          return fn(null);
+        }
         if (params.type == null) {
           res[name] = params;
           return fn(null);
         }
         return chain(params.sources, exec, function(err) {
-          if (err != null) return fn(err);
+          if (err != null) {
+            return fn(err);
+          }
           return exec(params.source, name, function(err) {
-            var callback, source, _ref2;
-            if (err != null) return fn(err);
+            var callback, source, _ref1;
+            if (err != null) {
+              return fn(err);
+            }
             if (params.name != null) {
               name = params.name;
             } else {
               params.name = name;
             }
-            if (((_ref2 = params.source) != null ? _ref2.name : void 0) != null) {
+            if (((_ref1 = params.source) != null ? _ref1.name : void 0) != null) {
               source = res[params.source.name];
             } else {
               source = res[name];
             }
             source = source || _this;
             callback = function(err, source) {
-              if (err != null) return fn(err);
+              if (err != null) {
+                return fn(err);
+              }
               res[name] = source;
               return fn(null, name);
             };
@@ -1149,7 +1261,9 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
         });
       };
       return chain(sources, exec, function(err) {
-        if (err != null) return fn(err, null);
+        if (err != null) {
+          return fn(err, null);
+        }
         return fn(null, res);
       });
     };
@@ -1168,11 +1282,11 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
   Source = (function() {
 
     Source.create = function(client, opts, fn) {
-      var res, _ref2;
+      var res, _ref1;
       res = new this(client, opts);
       delete opts.type;
       if (opts.sources == null) {
-        if (((_ref2 = opts.source) != null ? _ref2.name : void 0) != null) {
+        if (((_ref1 = opts.source) != null ? _ref1.name : void 0) != null) {
           opts.source = opts.source.name;
         } else if (client.name != null) {
           opts.source = client.name;
@@ -1186,7 +1300,9 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
         query: stringify(opts),
         expects: 201
       }, function(err) {
-        if (err != null) return fn(err, null);
+        if (err != null) {
+          return fn(err, null);
+        }
         return fn(null, res);
       });
     };
@@ -1200,6 +1316,7 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
       mixin(src, this);
       delete this.sources;
       this;
+
     }
 
     Source.prototype.skip = function(fn) {
@@ -1220,49 +1337,51 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
 
   })();
 
-  module.exports.Blank = (function() {
+  module.exports.Blank = (function(_super) {
 
-    __extends(Blank, Source);
+    __extends(Blank, _super);
 
     function Blank() {
-      Blank.__super__.constructor.apply(this, arguments);
+      return Blank.__super__.constructor.apply(this, arguments);
     }
 
     Blank.path = "/blank";
 
     return Blank;
 
-  })();
+  })(Source);
 
-  module.exports.Single = (function() {
+  module.exports.Single = (function(_super) {
 
-    __extends(Single, Source);
+    __extends(Single, _super);
 
     function Single() {
-      Single.__super__.constructor.apply(this, arguments);
+      return Single.__super__.constructor.apply(this, arguments);
     }
 
     Single.path = "/single";
 
     return Single;
 
-  })();
+  })(Source);
 
   module.exports.Request = {};
 
-  module.exports.Request.Queue = (function() {
+  module.exports.Request.Queue = (function(_super) {
 
-    __extends(Queue, Source);
+    __extends(Queue, _super);
 
     function Queue() {
       this.push = __bind(this.push, this);
-      Queue.__super__.constructor.apply(this, arguments);
+      return Queue.__super__.constructor.apply(this, arguments);
     }
 
     Queue.path = "/request/queue";
 
     Queue.prototype.push = function(requests, fn) {
-      if (!(requests instanceof Array)) requests = [requests];
+      if (!(requests instanceof Array)) {
+        requests = [requests];
+      }
       return this.http_request({
         method: "PUT",
         path: "/sources/" + this.name + "/requests",
@@ -1272,38 +1391,38 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
 
     return Queue;
 
-  })();
+  })(Source);
 
-  module.exports.Request.Dynamic = (function() {
+  module.exports.Request.Dynamic = (function(_super) {
 
-    __extends(Dynamic, Source);
+    __extends(Dynamic, _super);
 
     function Dynamic() {
-      Dynamic.__super__.constructor.apply(this, arguments);
+      return Dynamic.__super__.constructor.apply(this, arguments);
     }
 
     Dynamic.path = "/request/dynamic";
 
     return Dynamic;
 
-  })();
+  })(Source);
 
-  module.exports.Fallback = (function() {
+  module.exports.Fallback = (function(_super) {
 
-    __extends(Fallback, Source);
+    __extends(Fallback, _super);
 
     function Fallback() {
-      Fallback.__super__.constructor.apply(this, arguments);
+      return Fallback.__super__.constructor.apply(this, arguments);
     }
 
     Fallback.path = "/fallback";
 
     Fallback.create = function(client, opts, fn) {
-      var key, options, source, sources, _ref2;
+      var key, options, source, sources, _ref1;
       sources = {};
-      _ref2 = opts.sources;
-      for (key in _ref2) {
-        source = _ref2[key];
+      _ref1 = opts.sources;
+      for (key in _ref1) {
+        source = _ref1[key];
         sources[key] = "";
       }
       options = opts.options || {};
@@ -1316,17 +1435,17 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
 
     return Fallback;
 
-  })();
+  })(Source);
 
   module.exports.Metadata = {};
 
-  module.exports.Metadata.Get = (function() {
+  module.exports.Metadata.Get = (function(_super) {
 
-    __extends(Get, Source);
+    __extends(Get, _super);
 
     function Get() {
       this.get_metadata = __bind(this.get_metadata, this);
-      Get.__super__.constructor.apply(this, arguments);
+      return Get.__super__.constructor.apply(this, arguments);
     }
 
     Get.path = "/get_metadata";
@@ -1340,15 +1459,15 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
 
     return Get;
 
-  })();
+  })(Source);
 
-  module.exports.Metadata.Set = (function() {
+  module.exports.Metadata.Set = (function(_super) {
 
-    __extends(Set, Source);
+    __extends(Set, _super);
 
     function Set() {
       this.set_metadata = __bind(this.set_metadata, this);
-      Set.__super__.constructor.apply(this, arguments);
+      return Set.__super__.constructor.apply(this, arguments);
     }
 
     Set.path = "/set_metadata";
@@ -1363,14 +1482,14 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
 
     return Set;
 
-  })();
+  })(Source);
 
-  Stateful = (function() {
+  Stateful = (function(_super) {
 
-    __extends(Stateful, Source);
+    __extends(Stateful, _super);
 
     function Stateful() {
-      Stateful.__super__.constructor.apply(this, arguments);
+      return Stateful.__super__.constructor.apply(this, arguments);
     }
 
     Stateful.prototype.start = function(fn) {
@@ -1396,67 +1515,68 @@ require.define("/liquidsoap.coffee", function (require, module, exports, __dirna
 
     return Stateful;
 
-  })();
+  })(Source);
 
   module.exports.Input = {};
 
-  module.exports.Input.Http = (function() {
+  module.exports.Input.Http = (function(_super) {
 
-    __extends(Http, Stateful);
+    __extends(Http, _super);
 
     function Http() {
-      Http.__super__.constructor.apply(this, arguments);
+      return Http.__super__.constructor.apply(this, arguments);
     }
 
     Http.path = "/input/http";
 
     return Http;
 
-  })();
+  })(Stateful);
 
   module.exports.Output = {};
 
-  module.exports.Output.Ao = (function() {
+  module.exports.Output.Ao = (function(_super) {
 
-    __extends(Ao, Stateful);
+    __extends(Ao, _super);
 
     function Ao() {
-      Ao.__super__.constructor.apply(this, arguments);
+      return Ao.__super__.constructor.apply(this, arguments);
     }
 
     Ao.path = "/output/ao";
 
     return Ao;
 
-  })();
+  })(Stateful);
 
-  module.exports.Output.Dummy = (function() {
+  module.exports.Output.Dummy = (function(_super) {
 
-    __extends(Dummy, Stateful);
+    __extends(Dummy, _super);
 
     function Dummy() {
-      Dummy.__super__.constructor.apply(this, arguments);
+      return Dummy.__super__.constructor.apply(this, arguments);
     }
 
     Dummy.path = "/output/dummy";
 
     return Dummy;
 
-  })();
+  })(Stateful);
 
 }).call(this);
 
 });
 
-require.define("/utils.coffee", function (require, module, exports, __dirname, __filename) {
-(function() {
+require.define("/tmp/utils.coffee",function(require,module,exports,__dirname,__filename,process,global){(function() {
   var fromByteArray, stringify;
 
   fromByteArray = require("base64-js").fromByteArray;
 
   module.exports.chain = function(object, process, fn) {
     var exec, key, keys, value;
-    if (object == null) return fn(null);
+    if (object == null) {
+      return fn(null);
+    }
     keys = (function() {
       var _results;
       _results = [];
@@ -1467,10 +1587,14 @@ require.define("/utils.coffee", function (require, module, exports, __dirname, _
       return _results;
     })();
     exec = function() {
-      if (!(keys.length > 0)) return fn(null);
+      if (!(keys.length > 0)) {
+        return fn(null);
+      }
       key = keys.shift();
       return process(object[key], key, function(err) {
-        if (err != null) return fn(err);
+        if (err != null) {
+          return fn(err);
+        }
         return exec();
       });
     };
@@ -1515,12 +1639,10 @@ require.define("/utils.coffee", function (require, module, exports, __dirname, _
 
 });
 
-require.define("/node_modules/base64-js/package.json", function (require, module, exports, __dirname, __filename) {
-module.exports = {"main":"lib/b64.js"}
+require.define("/node_modules/base64-js/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {"main":"lib/b64.js"}
 });
 
-require.define("/node_modules/base64-js/lib/b64.js", function (require, module, exports, __dirname, __filename) {
-(function (exports) {
+require.define("/node_modules/base64-js/lib/b64.js",function(require,module,exports,__dirname,__filename,process,global){(function (exports) {
 	'use strict';
 
 	var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -1607,21 +1729,17 @@ require.define("/node_modules/base64-js/lib/b64.js", function (require, module, 
 
 });
 
-require.define("https", function (require, module, exports, __dirname, __filename) {
-module.exports = require('http');
+require.define("https",function(require,module,exports,__dirname,__filename,process,global){module.exports = require('http');
 
 });
 
-require.define("http", function (require, module, exports, __dirname, __filename) {
-module.exports = require("http-browserify")
+require.define("http",function(require,module,exports,__dirname,__filename,process,global){module.exports = require("http-browserify")
 });
 
-require.define("/node_modules/http-browserify/package.json", function (require, module, exports, __dirname, __filename) {
-module.exports = {"main":"index.js","browserify":"index.js"}
+require.define("/node_modules/http-browserify/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {"main":"index.js","browserify":"index.js"}
 });
 
-require.define("/node_modules/http-browserify/index.js", function (require, module, exports, __dirname, __filename) {
-var http = module.exports;
+require.define("/node_modules/http-browserify/index.js",function(require,module,exports,__dirname,__filename,process,global){var http = module.exports;
 var EventEmitter = require('events').EventEmitter;
 var Request = require('./lib/request');
 
@@ -1683,14 +1801,15 @@ var xhrHttp = (function () {
 
 });
 
-require.define("/node_modules/http-browserify/lib/request.js", function (require, module, exports, __dirname, __filename) {
-var EventEmitter = require('events').EventEmitter;
+require.define("/node_modules/http-browserify/lib/request.js",function(require,module,exports,__dirname,__filename,process,global){var Stream = require('stream');
 var Response = require('./response');
+var concatStream = require('concat-stream')
 
 var Request = module.exports = function (xhr, params) {
     var self = this;
+    self.writable = true;
     self.xhr = xhr;
-    self.body = '';
+    self.body = concatStream()
     
     var uri = params.host + ':' + params.port + (params.path || '/');
     
@@ -1701,19 +1820,25 @@ var Request = module.exports = function (xhr, params) {
     );
     
     if (params.headers) {
-        Object.keys(params.headers).forEach(function (key) {
+        var keys = objectKeys(params.headers);
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
             if (!self.isSafeRequestHeader(key)) return;
             var value = params.headers[key];
-            if (Array.isArray(value)) {
-                value.forEach(function (v) {
-                    xhr.setRequestHeader(key, v);
-                });
+            if (isArray(value)) {
+                for (var j = 0; j < value.length; j++) {
+                    xhr.setRequestHeader(key, value[j]);
+                }
             }
             else xhr.setRequestHeader(key, value)
-        });
+        }
     }
     
     var res = new Response;
+    res.on('close', function () {
+        self.emit('close');
+    });
+    
     res.on('ready', function () {
         self.emit('response', res);
     });
@@ -1723,11 +1848,10 @@ var Request = module.exports = function (xhr, params) {
     };
 };
 
-Request.prototype = new EventEmitter;
+Request.prototype = new Stream;
 
 Request.prototype.setHeader = function (key, value) {
-    if ((Array.isArray && Array.isArray(value))
-    || value instanceof Array) {
+    if (isArray(value)) {
         for (var i = 0; i < value.length; i++) {
             this.xhr.setRequestHeader(key, value[i]);
         }
@@ -1738,12 +1862,18 @@ Request.prototype.setHeader = function (key, value) {
 };
 
 Request.prototype.write = function (s) {
-    this.body += s;
+    this.body.write(s);
+};
+
+Request.prototype.destroy = function (s) {
+    this.xhr.abort();
+    this.emit('close');
 };
 
 Request.prototype.end = function (s) {
-    if (s !== undefined) this.write(s);
-    this.xhr.send(this.body);
+    if (s !== undefined) this.body.write(s);
+    this.body.end()
+    this.xhr.send(this.body.getBody());
 };
 
 // Taken from http://dxr.mozilla.org/mozilla/mozilla-central/content/base/src/nsXMLHttpRequest.cpp.html
@@ -1773,19 +1903,159 @@ Request.unsafeHeaders = [
 
 Request.prototype.isSafeRequestHeader = function (headerName) {
     if (!headerName) return false;
-    return (Request.unsafeHeaders.indexOf(headerName.toLowerCase()) === -1)
+    return indexOf(Request.unsafeHeaders, headerName.toLowerCase()) === -1;
+};
+
+var objectKeys = Object.keys || function (obj) {
+    var keys = [];
+    for (var key in obj) keys.push(key);
+    return keys;
+};
+
+var isArray = Array.isArray || function (xs) {
+    return Object.prototype.toString.call(xs) === '[object Array]';
+};
+
+var indexOf = function (xs, x) {
+    if (xs.indexOf) return xs.indexOf(x);
+    for (var i = 0; i < xs.length; i++) {
+        if (xs[i] === x) return i;
+    }
+    return -1;
 };
 
 });
 
-require.define("/node_modules/http-browserify/lib/response.js", function (require, module, exports, __dirname, __filename) {
-var EventEmitter = require('events').EventEmitter;
+require.define("stream",function(require,module,exports,__dirname,__filename,process,global){var events = require('events');
+var util = require('util');
+
+function Stream() {
+  events.EventEmitter.call(this);
+}
+util.inherits(Stream, events.EventEmitter);
+module.exports = Stream;
+// Backwards-compat with node 0.4.x
+Stream.Stream = Stream;
+
+Stream.prototype.pipe = function(dest, options) {
+  var source = this;
+
+  function ondata(chunk) {
+    if (dest.writable) {
+      if (false === dest.write(chunk) && source.pause) {
+        source.pause();
+      }
+    }
+  }
+
+  source.on('data', ondata);
+
+  function ondrain() {
+    if (source.readable && source.resume) {
+      source.resume();
+    }
+  }
+
+  dest.on('drain', ondrain);
+
+  // If the 'end' option is not supplied, dest.end() will be called when
+  // source gets the 'end' or 'close' events.  Only dest.end() once, and
+  // only when all sources have ended.
+  if (!dest._isStdio && (!options || options.end !== false)) {
+    dest._pipeCount = dest._pipeCount || 0;
+    dest._pipeCount++;
+
+    source.on('end', onend);
+    source.on('close', onclose);
+  }
+
+  var didOnEnd = false;
+  function onend() {
+    if (didOnEnd) return;
+    didOnEnd = true;
+
+    dest._pipeCount--;
+
+    // remove the listeners
+    cleanup();
+
+    if (dest._pipeCount > 0) {
+      // waiting for other incoming streams to end.
+      return;
+    }
+
+    dest.end();
+  }
+
+
+  function onclose() {
+    if (didOnEnd) return;
+    didOnEnd = true;
+
+    dest._pipeCount--;
+
+    // remove the listeners
+    cleanup();
+
+    if (dest._pipeCount > 0) {
+      // waiting for other incoming streams to end.
+      return;
+    }
+
+    dest.destroy();
+  }
+
+  // don't leave dangling pipes when there are errors.
+  function onerror(er) {
+    cleanup();
+    if (this.listeners('error').length === 0) {
+      throw er; // Unhandled stream error in pipe.
+    }
+  }
+
+  source.on('error', onerror);
+  dest.on('error', onerror);
+
+  // remove all the event listeners that were added.
+  function cleanup() {
+    source.removeListener('data', ondata);
+    dest.removeListener('drain', ondrain);
+
+    source.removeListener('end', onend);
+    source.removeListener('close', onclose);
+
+    source.removeListener('error', onerror);
+    dest.removeListener('error', onerror);
+
+    source.removeListener('end', cleanup);
+    source.removeListener('close', cleanup);
+
+    dest.removeListener('end', cleanup);
+    dest.removeListener('close', cleanup);
+  }
+
+  source.on('end', cleanup);
+  source.on('close', cleanup);
+
+  dest.on('end', cleanup);
+  dest.on('close', cleanup);
+
+  dest.emit('pipe', source);
+
+  // Allow for unix-like usage: A.pipe(B).pipe(C)
+  return dest;
+};
+
+});
+
+require.define("/node_modules/http-browserify/lib/response.js",function(require,module,exports,__dirname,__filename,process,global){var Stream = require('stream');
 
 var Response = module.exports = function (res) {
     this.offset = 0;
+    this.readable = true;
 };
 
-Response.prototype = new EventEmitter;
+Response.prototype = new Stream;
 
 var capable = {
     streaming : true,
@@ -1804,8 +2074,8 @@ function parseHeaders (res) {
             var key = m[1].toLowerCase(), value = m[2];
             
             if (headers[key] !== undefined) {
-                if ((Array.isArray && Array.isArray(headers[key]))
-                || headers[key] instanceof Array) {
+            
+                if (isArray(headers[key])) {
                     headers[key].push(value);
                 }
                 else {
@@ -1821,6 +2091,13 @@ function parseHeaders (res) {
         }
     }
     return headers;
+}
+
+Response.prototype.getResponse = function (xhr) {
+    var respType = String(xhr.responseType).toLowerCase();
+    if (respType === 'blob') return xhr.responseBlob;
+    if (respType === 'arraybuffer') return xhr.response;
+    return xhr.responseText;
 }
 
 Response.prototype.getHeader = function (key) {
@@ -1852,7 +2129,7 @@ Response.prototype.handle = function (res) {
         catch (err) {}
         
         try {
-            this.write(res);
+            this._emitData(res);
         }
         catch (err) {
             capable.streaming = false;
@@ -1863,26 +2140,91 @@ Response.prototype.handle = function (res) {
             this.statusCode = res.status;
             this.emit('ready');
         }
-        this.write(res);
+        this._emitData(res);
         
         if (res.error) {
-            this.emit('error', res.responseText);
+            this.emit('error', this.getResponse(res));
         }
         else this.emit('end');
+        
+        this.emit('close');
     }
 };
 
-Response.prototype.write = function (res) {
-    if (res.responseText.length > this.offset) {
-        this.emit('data', res.responseText.slice(this.offset));
-        this.offset = res.responseText.length;
+Response.prototype._emitData = function (res) {
+    var respBody = this.getResponse(res);
+    if (respBody.toString().match(/ArrayBuffer/)) {
+        this.emit('data', new Uint8Array(respBody, this.offset));
+        this.offset = respBody.byteLength;
+        return;
     }
+    if (respBody.length > this.offset) {
+        this.emit('data', respBody.slice(this.offset));
+        this.offset = respBody.length;
+    }
+};
+
+var isArray = Array.isArray || function (xs) {
+    return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
 });
 
-require.define("/wrapper.coffee", function (require, module, exports, __dirname, __filename) {
-    (function() {
+require.define("/node_modules/http-browserify/node_modules/concat-stream/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {}
+});
+
+require.define("/node_modules/http-browserify/node_modules/concat-stream/index.js",function(require,module,exports,__dirname,__filename,process,global){var stream = require('stream')
+var util = require('util')
+
+function ConcatStream(cb) {
+  stream.Stream.call(this)
+  this.writable = true
+  if (cb) this.cb = cb
+  this.body = []
+  if (this.cb) this.on('error', cb)
+}
+
+util.inherits(ConcatStream, stream.Stream)
+
+ConcatStream.prototype.write = function(chunk) {
+  this.body.push(chunk)
+}
+
+ConcatStream.prototype.arrayConcat = function(arrs) {
+  if (arrs.length === 0) return []
+  if (arrs.length === 1) return arrs[0]
+  return arrs.reduce(function (a, b) { return a.concat(b) })
+}
+
+ConcatStream.prototype.isArray = function(arr) {
+  var isArray = Array.isArray(arr)
+  var isTypedArray = arr.toString().match(/Array/)
+  return isArray || isTypedArray
+}
+
+ConcatStream.prototype.getBody = function () {
+  if (this.body.length === 0) return
+  if (typeof(this.body[0]) === "string") return this.body.join('')
+  if (this.isArray(this.body[0])) return this.arrayConcat(this.body)
+  if (typeof(Buffer) !== "undefined" && Buffer.isBuffer(this.body[0])) {
+    return Buffer.concat(this.body)
+  }
+  return this.body
+}
+
+ConcatStream.prototype.end = function() {
+  if (this.cb) this.cb(false, this.getBody())
+}
+
+module.exports = function(cb) {
+  return new ConcatStream(cb)
+}
+
+module.exports.ConcatStream = ConcatStream
+
+});
+
+require.define("/tmp/wrapper.coffee",function(require,module,exports,__dirname,__filename,process,global){(function() {
   var util;
 
   window.console || (window.console = {});
@@ -1905,4 +2247,5 @@ require.define("/wrapper.coffee", function (require, module, exports, __dirname,
 }).call(this);
 
 });
-require("/wrapper.coffee");
+require("/tmp/wrapper.coffee");
+})();
