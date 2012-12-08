@@ -2,7 +2,7 @@ Liquidsoap node controler
 =========================
 
 This module uses [savonet/liquidsoap-controler](https://github.com/savonet/liquidsoap-controler) to provide
-a rich and simply API to create and manipulate liquidsoap streams in nodeJS.
+a rich and simple API to create and manipulate liquidsoap streams in nodeJS and in the browser.
 
 Documentation
 =============
