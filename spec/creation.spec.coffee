@@ -32,7 +32,7 @@ describe "Sources creation", ->
 
     @client = @args = @fn = @httpParams = @httpArgs = @type = null
 
-  it "can create a blank source", ->
+  it "can create a blank source with name as key", ->
     @name  = "blank"
     @type  = Blank
     @args  =
@@ -48,7 +48,24 @@ describe "Sources creation", ->
         name     : "blank"
       expects : 201
 
-  it "can create an output.ao source", ->
+  it "can create a blank source with name in params", ->
+    @name  = "blank"
+    @type  = Blank
+    @args  = [
+      type     : Blank
+      name     : "blank"
+      duration : 3
+    ]
+
+    @httpArgs =
+      method  : "POST",
+      path    : "/blank"
+      query   :
+        duration : "3"
+        name     : "blank"
+      expects : 201
+
+  it "can create an output.ao source with name as key", ->
     @name = "ao"
     @type = Output.Ao
 
@@ -58,6 +75,26 @@ describe "Sources creation", ->
       ao :
         type   : Output.Ao
         source : @client
+
+    @httpArgs =
+      method  : "POST",
+      path    : "/output/ao"
+      query   :
+        name   : "ao"
+        source : "foo"
+      expects : 201
+
+  it "can create an output.ao source with name in params", ->
+    @name = "ao"
+    @type = Output.Ao
+
+    @client.name = "foo"
+
+    @args = [
+      type   : Output.Ao
+      name   : "ao"
+      source : @client
+    ]
 
     @httpArgs =
       method  : "POST",
