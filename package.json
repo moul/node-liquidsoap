@@ -34,6 +34,7 @@
   "devDependencies": {
     "browserify"    : "1.16.6",
     "coffee-script" : "1.4.0",
+    "jasmine-node"  : "1.0.28",
     "minifyjs"      : "0.1.0"
   }
 }

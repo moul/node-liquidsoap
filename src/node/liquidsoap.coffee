@@ -1,16 +1,16 @@
 {b64, chain, stringify, mixin} = require "./utils"
 
 class module.exports.Client
-  constructor: (@opts) ->
-    @auth = opts.auth
-    @host = opts.host
+  constructor: (@opts = {}) ->
+    @auth = @opts.auth
+    @host = @opts.host
     # For browserify..
-    @scheme = opts.scheme || "http"
-    if opts.scheme == "https"
+    @scheme = @opts.scheme || "http"
+    if @opts.scheme == "https"
       @http = require "https"
     else
       @http = require "http"
-    @port = opts.port || 80
+    @port = @opts.port || 80
 
   http_request: (opts, fn) =>
     expects = opts.expects || 200
