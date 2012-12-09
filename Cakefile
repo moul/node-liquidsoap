@@ -1,4 +1,4 @@
-{exec} = require "child_process"
+{exec, spawn} = require "child_process"
 
 call = (command, fn) ->
   exec command, (err, stdout, stderr) ->
@@ -7,6 +7,9 @@ call = (command, fn) ->
       return console.dir   err
 
     fn err if fn?
+
+system = (command, args) ->
+  spawn command, args, stdio: "inherit"
 
 build = (fn) ->
   call "coffee -c -o lib/node/ src/node/*.coffee", ->
@@ -22,3 +25,6 @@ task 'test', 'Run the tests', (args) ->
   build ->
     exec "rm -rf tmp && mkdir tmp && cp src/node/*.coffee test/*.coffee tmp", ->
       require "./tmp/request"
+
+task 'spec', 'Run the spec tests', ->
+  system "jasmine-node", ["--coffee", "./spec"]
