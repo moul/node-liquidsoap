@@ -137,7 +137,7 @@ class Source
       else
         delete opts.source
 
-    res.http_request {
+    client.http_request {
       method  : "POST",
       path    : @path,
       query   : stringify(opts),
