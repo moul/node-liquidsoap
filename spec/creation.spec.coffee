@@ -3,15 +3,19 @@
 describe "Sources creation", ->
   beforeEach ->
     @client = new Client
+    @fn     = ->
 
     spyOn(@client, "http_request").andCallFake (@params, fn) =>
       fn "done-test-create"
 
-  it "can create a blank source", ->
-    @fn = ->
-
     spyOn this, "fn"
 
+  afterEach ->
+    expect(@fn).toHaveBeenCalledWith "done-test-create", null
+
+    @client = @params = @fn = null
+
+  it "can create a blank source", ->
     @client.create { blank:
       type     : Blank
       duration : 3
@@ -24,5 +28,3 @@ describe "Sources creation", ->
         duration: "3"
         name:     "blank"
       expects : 201
- 
-    expect(@fn).toHaveBeenCalledWith "done-test-create", null
