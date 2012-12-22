@@ -96,6 +96,42 @@ client.create conf, (err, sources) ->
   {ao, get, blank} = sources
 ```
 
+Alternative creation calls
+--------------------------
+
+The following creation calls are also supported:
+
+
+#### Declare sources as `name => conf` associations.
+```
+conf =
+  blank :
+    type : API.Blank
+  queue :
+    type : API.Request.Queue
+  ao :
+    type : API.Output.Ao
+    source :
+      type      : API.Input.Http
+      uri       : "http://..."
+      autostart : false
+
+client.create conf, (err, sources) ->
+  return console.dir err if err?
+    
+  {blank, queue, ao} = sources
+```
+
+#### Direct call to the base class
+```
+blank = null
+
+API.Blank.create client, { name : "blank" }, (err, sources) ->
+  return console.dir err if err?
+  
+  {blank} = sources
+```
+
 TODO
 ====
 
