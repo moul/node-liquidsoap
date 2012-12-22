@@ -79,7 +79,7 @@ class module.exports.Client
 
         exec params.source, name, (err) =>
           return fn err if err?
-     
+
           if params.name?
             name = params.name
           else
@@ -112,7 +112,7 @@ class module.exports.Client
       fn null, res
 
   sources: (fn) ->
-    @http_request {
+    options =
       method : "GET"
-      path   : "/sources" }, fn
-
+      path   : "/sources"
+    @http_request options, fn

@@ -18,7 +18,7 @@ class API.Private.Source
     delete opts.type
 
     # Source/sources
-   
+
     # Do nothing if opts.sources is defined.
     unless opts.sources?
       # First, try opts.source.name if it exists
@@ -31,11 +31,13 @@ class API.Private.Source
       else
         delete opts.source
 
-    res.http_request {
-      method  : "POST",
-      path    : @path,
-      query   : stringify(opts),
-      expects : 201 }, (err) ->
+    http_options =
+      method  : "POST"
+      path:   : @path
+      query   : stringify opts
+      expects : 201
+
+    res.http_request http_options, (err) ->
         return fn err, null if err?
 
         fn null, res
@@ -55,27 +57,36 @@ class API.Private.Source
 
   # Generic endpoints
   skip: (fn) ->
-    @http_request {
-      method : "PUT",
-      path   : "/sources/#{@name}/skip"}, fn
+    http_options =
+      method : "PUT"
+      path   : "/sources/#{@name}/skip"
+
+    @http_request http_options, fn
 
   shutdown: (fn) ->
-    @http_request {
-      method : "DELETE",
-      path   : "/sources/#{@name}"}, fn
+    http_options =
+      method : "DELETE"
+      path   : "/sources/#{@name}"
+
+    @http_request http_options, fn
 
 class API.Private.Stateful extends API.Private.Source
   start: (fn) ->
-    @http_request {
-      method : "PUT",
-      path   : "/sources/#{@name}/start" }, fn
+    http_options =
+      method : "PUT"
+      path   : "/sources/#{@name}/start"
+
+    @http_request http_options, fn
 
   stop: (fn) ->
-    @http_request {
-      method : "PUT",
-      path   : "/sources/#{@name}/stop" }, fn
+    http_options =
+      method : "PUT"
+      path   : "/sources/#{@name}/stop"
+    @http_request http_options, fn
 
   status: (fn) ->
-    @http_request {
-      method : "GET",
-      path   : "/sources/#{@name}/status" }, fn
+    http_options =
+      method : "GET"
+      path   : "/sources/#{@name}/status"
+
+    @http_request http_options, fn
