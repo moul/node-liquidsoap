@@ -27,10 +27,10 @@ blank = null
   
 client.create {
   type : API.Blank,
-  name : "blank" }, (err, res) ->
+  name : "blank" }, (err, sources) ->
     return console.dir err if err?
     
-    {blank} = res
+    {blank} = sources
 ```
 
 By convention, all callback functions receive an error, if it occured, as first parameter.
@@ -42,10 +42,10 @@ get = null
 
 Metadata.Get.create {
   source : blank,
-  name   : "get" }, (err, res) ->
+  name   : "get" }, (err, sources) ->
     return console.dir err if err?
     
-    {get} = res
+    {get} = sources
 
 # Now you can get metadata!
 get.get_metadata (err, metadata) ->
@@ -65,10 +65,10 @@ ao = null
 
 Output.Ao.create {
   source : get,
-  name   : ap}, (err, res) ->
+  name   : ap}, (err, sources) ->
     return console.dir err if err?
     
-    {ao} = res
+    {ao} = sources
 ```
 
 Chained creation
