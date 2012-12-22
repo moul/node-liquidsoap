@@ -13,9 +13,12 @@ system = (command, args) ->
 
 build = (fn) ->
   call "coffee -c -o lib/node/ src/node/*.coffee", ->
-    call "rm -rf tmp && mkdir tmp && cp src/node/*.coffee src/browser/*.coffee tmp && browserify tmp/entry.coffee -o lib/browser/liquidsoap.js", ->
-      call "minifyjs --engine yui --level 2 lib/browser/liquidsoap.js > lib/browser/liquidsoap.min.js", ->
-        call "rm -rf tmp && mkdir tmp && cp src/node/*.coffee test/*.coffee test/browser/wrapper.coffee tmp && browserify tmp/wrapper.coffee -o test/browser/files/bundle.js", fn
+    call "coffee -c -o lib/node/api src/node/api/*.coffee", ->
+      call "rm -rf tmp && mkdir -p tmp/api", ->
+        call "cp src/node/*.coffee src/browser/*.coffee tmp", ->
+          call "cp src/node/api/*.coffee tmp/api", ->
+            call "browserify tmp/entry.coffee -o lib/browser/liquidsoap.js", ->
+              call "minifyjs --engine yui --level 2 lib/browser/liquidsoap.js > lib/browser/liquidsoap.min.js", fn
 
 task 'build', 'Compile coffee scripts into plain Javascript files', ->
   build ->

@@ -1,7 +1,10 @@
-{ Client,   Request,
-  Output,   Input,
-  Metadata, Fallback,
-  Single,   Blank } = require "./liquidsoap"
+{ Client, API} = require "./liquidsoap"
+
+{ Request,  Output,   
+  Input,    Metadata, 
+  Fallback, Single,
+  Blank } = API
+
 {chain}             = require "./utils"
 
 opts =

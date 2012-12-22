@@ -1,4 +1,6 @@
-{Client, Output, Fallback} = require "../src/node/liquidsoap"
+{Client, API} = require "../src/node/liquidsoap"
+
+{Output, Fallback} = API
 
 describe "Chaining sources", ->
   beforeEach ->

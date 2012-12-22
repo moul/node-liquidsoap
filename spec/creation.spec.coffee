@@ -1,6 +1,8 @@
-{Blank,   Client,
- Input,   Output, 
- Request, Single} = require "../src/node/liquidsoap"
+{Client, API} = require "../src/node/liquidsoap"
+
+{Blank,   Input,
+ Output,  Request,
+ Single} = API
 
 describe "Creation", ->
   beforeEach ->
