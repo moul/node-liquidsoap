@@ -80,7 +80,7 @@ You can also chain sources creation using a single object. For instance, the exa
 ```
 ao = get = blank = null
 
-sources =
+conf =
   type   : API.Output.Ao
   name   : "ao"
   source :
@@ -90,7 +90,7 @@ sources =
       type : API.Blank
       name : "blank"
 
-client.create sources, (err, sources) ->
+client.create conf, (err, sources) ->
   return console.dir err if err?
     
   {ao, get, blank} = sources
