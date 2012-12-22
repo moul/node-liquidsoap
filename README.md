@@ -80,18 +80,20 @@ You can also chain sources creation using a single object. For instance, the exa
 ```
 ao = get = blank = null
 
-client.create {
-  ao :
-    type   : API.Output.Ao
+sources =
+  type   : API.Output.Ao
+  name   : "ao"
+  source :
+    type : API.Metadata.Get
+    name : "get"
     source :
-      type : API.Metadata.Get
-      name : "get"
-      source :
-        type : API.Blank
-        name : "blank" }, (err, sources) ->
-    return console.dir err if err?
+      type : API.Blank
+      name : "blank"
+
+client.create sources, (err, sources) ->
+  return console.dir err if err?
     
-    {ao, get, blank} = sources
+  {ao, get, blank} = sources
 ```
 
 TODO
