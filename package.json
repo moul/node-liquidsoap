@@ -2,17 +2,17 @@
   "name": "liquidsoap",
   "description": "nodeJS liquidsoap stream controler.",
   "version": "0.0.1",
-  "homepage": "http://github.com/toots/node-liquidsoap",
+  "homepage": "http://github.com/savonet/node-liquidsoap",
   "author": "Romain Beauxis <toots@rastageeks.org",
   "repository":
     {
       "type":"git",
-      "url":"git://github.com/toots/node-liquidsoap.git"
+      "url":"git://github.com/savonet/node-liquidsoap.git"
     },
   "bugs":
     {
-      "mail":"toots@rastageeks.org",
-      "url":"http://github.com/toots/node-liquidsoap/issues"
+      "mail":"savonet-users@lists.sourceforge.net",
+      "url":"http://github.com/savonet/node-liquidsoap/issues"
     },
   "main": "lib/liquidsoap.js",
   "directories": 
@@ -20,7 +20,7 @@
       "test":"./test",   
       "src":"./src" 
     },
-  "engine": {"node": ">= 0.4.7", "npm": "1"},
+  "engine": {"node": ">= 0.8.16", "npm": ">= 1.1.70"},
   "licences":
     [
       {
