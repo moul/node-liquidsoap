@@ -40,7 +40,7 @@ Once you have created a base source, you can wrap it into one of the available o
 ```
 get = null
 
-Metadata.Get.create {
+API.Metadata.Get.create {
   source : blank,
   name   : "get" }, (err, sources) ->
     return console.dir err if err?
@@ -63,7 +63,7 @@ Finally, you can plug a source into an output:
 ```
 ao = null
 
-Output.Ao.create {
+API.Output.Ao.create {
   source : get,
   name   : ap}, (err, sources) ->
     return console.dir err if err?
@@ -80,12 +80,12 @@ ao = get = blank = null
 
 client.create {
   ao :
-    type   : Output.Ao
+    type   : API.Output.Ao
     source :
-      type : Metadata.Get
+      type : API.Metadata.Get
       name : "get"
       source :
-        type : Blank
+        type : API.Blank
         name : "blank" }, (err, sources) ->
     return console.dir err if err?
     
