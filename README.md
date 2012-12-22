@@ -7,6 +7,93 @@ a rich and simple API to create and manipulate liquidsoap streams in nodeJS and 
 Documentation
 =============
 
-This is currently an on-going project... Documentation will be written once the API has been stabilized. 
+The `liquidsoap` module contains the following classes:
 
-Until then, you can checkout the [tests](https://github.com/savonet/node-liquidsoap/tree/master/test).
+* `Client` : Base client to communicate with an instance of `liquidsoap-controller`
+* `API` : API of available sources, operators and outputs.
+
+Basics
+------
+
+All sources, operators and output are created asynchronously. For instance:
+
+```
+client = new Client
+  auth : "user:password"
+  host : "myserver"
+  port : 8080
+  
+blank = null
+  
+client.create {
+  type : API.Blank,
+  name : "blank" }, (err, res) ->
+    return console.dir err if err?
+    
+    {blank} = res
+```
+
+By convention, all callback functions receive an error, if it occured, as first parameter.
+
+Once you have created a base source, you can wrap it into one of the available operators, for instance:
+
+```
+get = null
+
+Metadata.Get.create {
+  source : blank,
+  name   : "get" }, (err, res) ->
+    return console.dir err if err?
+    
+    {get} = res
+
+# Now you can get metadata!
+get.get_metadata (err, metadata) ->
+  return console.dir err if err?
+  
+  console.log "Metadata:"
+  console.dir metadata
+```
+
+The `name` parameter above is optional. If no `name` is given, the new source will be named `"blank"`
+as well. You can call `client.sources` (asynchronous call), to get the list of all defined sources.
+
+Finally, you can plug a source into an output:
+
+```
+ao = null
+
+Output.Ao.create {
+  source : get,
+  name   : ap}, (err, res) ->
+    return console.dir err if err?
+    
+    {ao} = res
+```
+
+Chained creation
+----------------
+
+You can also chain sources creation using a single object. For instance, the example above rewrites as:
+```
+ao = get = blank = null
+
+client.create {
+  ao :
+    type   : Output.Ao
+    source :
+      type : Metadata.Get
+      name : "get"
+      source :
+        type : Blank
+        name : "blank" }, (err, sources) ->
+    return console.dir err if err?
+    
+    {ao, get, blank} = sources
+```
+
+TODO
+====
+
+More operators, support for encoders, support for `request.dynamic`, ...
+      
