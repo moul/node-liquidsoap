@@ -12,7 +12,7 @@ API.Private = {}
 
 class API.Private.Source
   @create: (client, opts, fn) ->
-    res = new this client, opts
+    res = new @ client, opts
 
     # Cleanup options
     delete opts.type
@@ -44,16 +44,16 @@ class API.Private.Source
 
   constructor: (src, opts) ->
     if opts.sources?
-      this.name = opts.options.name
+      @name = opts.options.name
     else
-      this.name = opts.name ||= src.name
+      @name = opts.name ||= src.name
 
-    mixin src, this
+    mixin src, @
 
     # Do no heritate sources method.
-    delete this.sources
+    delete @sources
 
-    this
+    @
 
   # Generic endpoints
   skip: (fn) ->

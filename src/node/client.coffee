@@ -37,6 +37,8 @@ class module.exports.Client
       opts.headers["Content-Type"]   = "application/json"
       opts.headers["Content-Length"] = query.length
 
+    console.log opts, query
+
     req = @http.request opts, (res) ->
       data = ""
       res.on "data", (buf) -> data += buf
@@ -95,7 +97,7 @@ class module.exports.Client
 
           # If source does not exist yet (source creation,
           # e.g request.queue etc..), then use current client.
-          source = source || this
+          source = source || @
 
           callback = (err, source) ->
             return fn err if err?
