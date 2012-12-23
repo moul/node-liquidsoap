@@ -1,7 +1,7 @@
 { Client, API} = require "./liquidsoap"
 
-{ Request,  Output,   
-  Input,    Metadata, 
+{ Request,  Output,
+  Input,    Metadata,
   Fallback, Single,
   Blank } = API
 
@@ -15,6 +15,15 @@ opts =
 client = new Client opts
 
 sources =
+  baz :
+    type   : Output.Icecast
+      mount     : '/test.mp3'
+      #encoder  : Encoder.Mp3
+      #  bitrate    : 128
+      #  samplerate : 44100
+    source :
+      type      : Input.Http
+      uri       : "http://radiopi.org:8080/reggae"
   foo :
     type   : Output.Ao
     source :
@@ -68,10 +77,10 @@ changeMetadata = (source, value, fn) ->
       return console.log "Error grabbing metadata" if err?
 
       console.log """
-        Latest metadata on #{source.name}: 
+        Latest metadata on #{source.name}:
         #{JSON.stringify res, undefined, 2}
                   """
-  
+
       setTimeout next, 500 if next?
 
   cb = ->
@@ -162,5 +171,5 @@ client.create sources, (err, sources) ->
                     return console.dir err.err
 
                   console.log "All Good Folks!"
-             
+
             setTimeout cb, 1000
