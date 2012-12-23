@@ -90,3 +90,15 @@ class API.Private.Stateful extends API.Private.Source
       path   : "/sources/#{@name}/status"
 
     @http_request options, fn
+
+class API.Private.IcecastWrapper extends API.Private.Stateful
+  @path: "/output/icecast"
+
+  constructor: (src, obj) ->
+    if obj.type?.opts?
+      mixin obj.type.opts, obj
+    super src, obj
+
+# Encoders
+class API.Private.Encoder
+  @opts: {}

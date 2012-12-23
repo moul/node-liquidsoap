@@ -8,12 +8,10 @@ class API.Output.Ao          extends API.Private.Stateful
 class API.Output.Dummy       extends API.Private.Stateful
   @path: "/output/dummy"
 
-class API.Output.IcecastBase extends API.Private.Stateful
-  @path: "/output/icecast"
-
-API.Output.Icecast = (options = {}) ->
-  object = API.Output.IcecastBase
-  # TODO: options.encoder
-  # TODO: options.mount
-  object.path    = "/output/icecast.mp3.128"
-  return object
+API.Output.Icecast = (opts) ->
+  output = API.Private.IcecastWrapper
+  output.opts ?= {}
+  output.opts.mount = opts['mount']
+  for key, value of opts['encoder'].opts
+    output.opts["encoder_#{key}"] = value
+  output

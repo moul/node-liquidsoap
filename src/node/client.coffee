@@ -37,7 +37,7 @@ class module.exports.Client
       opts.headers["Content-Type"]   = "application/json"
       opts.headers["Content-Length"] = query.length
 
-    console.log opts, query
+    #console.log opts, query
 
     req = @http.request opts, (res) ->
       data = ""

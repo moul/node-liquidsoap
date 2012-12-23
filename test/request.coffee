@@ -3,7 +3,7 @@
 { Request,  Output,
   Input,    Metadata,
   Fallback, Single,
-  Blank } = API
+  Encoder,  Blank } = API
 
 {chain}             = require "./utils"
 
@@ -14,17 +14,26 @@ opts =
 
 client = new Client opts
 
-sources =
-  baz :
+sources = {}
+sources.ice128 =
     type   : Output.Icecast
       mount     : '/test.mp3'
-      #encoder  : Encoder.Mp3
-      #  bitrate    : 128
-      #  samplerate : 44100
+      encoder   : Encoder.Mp3
+        bitrate    : 128
+        samplerate : 44100
     source :
       type      : Input.Http
       uri       : "http://radiopi.org:8080/reggae"
-  foo :
+sources.ice32 =
+    type   : Output.Icecast
+      mount     : '/test2.mp3'
+      encoder   : Encoder.Mp3
+        bitrate    : 32
+        samplerate : 44100
+    source :
+      type      : Input.Http
+      uri       : "http://radiopi.org:8080/reggae"
+sources.foo =
     type   : Output.Ao
     source :
       type   : Metadata.Get
@@ -42,7 +51,7 @@ sources =
               type      : Input.Http
               uri       : "http://radiopi.org:8080/reggae"
               autostart : false
-  dummy :
+sources.dummy =
     type   : Output.Dummy
     source :
       type    : Fallback
@@ -111,6 +120,8 @@ client.create sources, (err, sources) ->
   if err?
     console.log "Error while creating sources:"
     return console.dir err
+
+  # process.exit 0 # Temporarily stop the test here
 
   # Test case where source is already instanciated
   dummy2 =
