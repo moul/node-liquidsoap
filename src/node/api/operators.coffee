@@ -23,15 +23,18 @@ class API.Metadata.Get extends API.Private.Source
   @path: "/get_metadata"
 
   get_metadata: (fn) =>
-    @http_request {
-      method : "GET",
-      path   : "/sources/#{@name}/metadata" }, fn
+    options =
+      method : "GET"
+      path   : "/sources/#{@name}/metadata"
+
+    @http_request options, fn
 
 class API.Metadata.Set extends API.Private.Source
   @path: "/set_metadata"
 
   set_metadata: (metadata, fn) =>
-    @http_request {
-      method : "PUT",
-      path   : "/sources/#{@name}/metadata",
-      query  : metadata }, fn
+    options =
+      method : "PUT"
+      path   : "/sources/#{@name}/metadata"
+      query  : metadata
+    @http_request options, fn
