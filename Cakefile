@@ -26,7 +26,7 @@ task 'build', 'Compile coffee scripts into plain Javascript files', ->
 
 task 'test', 'Run the tests', (args) ->
   build ->
-    exec "rm -rf tmp && mkdir tmp && cp src/node/*.coffee test/*.coffee tmp", ->
+    exec "rm -rf tmp && mkdir -p tmp tmp/api && cp -rf src/node/* test/*.coffee tmp", ->
       require "./tmp/request"
 
 task 'spec', 'Run the spec tests', ->

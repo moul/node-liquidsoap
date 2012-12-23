@@ -4,6 +4,16 @@
   "version": "0.0.1",
   "homepage": "http://github.com/savonet/node-liquidsoap",
   "author": "Romain Beauxis <toots@rastageeks.org",
+  "contributors": [
+    {
+      "name": "Manfred Touron",
+      "email": "m@42.am",
+      "web":   "https://github.com/moul"
+    }
+  ],
+  "scripts": {
+    "test": "cake spec"
+  },
   "repository":
     {
       "type":"git",
@@ -15,10 +25,10 @@
       "url":"http://github.com/savonet/node-liquidsoap/issues"
     },
   "main": "lib/liquidsoap.js",
-  "directories": 
+  "directories":
     { "lib":"./lib",
-      "test":"./test",   
-      "src":"./src" 
+      "test":"./test",
+      "src":"./src"
     },
   "engine": {"node": ">= 0.8.16", "npm": ">= 1.1.70"},
   "licences":
