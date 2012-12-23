@@ -33,7 +33,7 @@ class API.Private.Source
 
     http_options =
       method  : "POST"
-      path:   : @path
+      path    : @path
       query   : stringify opts
       expects : 201
 
