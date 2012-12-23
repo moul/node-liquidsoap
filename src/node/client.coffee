@@ -97,7 +97,7 @@ class module.exports.Client
 
           # If source does not exist yet (source creation,
           # e.g request.queue etc..), then use current client.
-          source = source || @
+          source = source || this
 
           callback = (err, source) ->
             return fn err if err?

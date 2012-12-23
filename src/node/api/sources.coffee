@@ -16,12 +16,12 @@ class API.Request.Queue extends API.Private.Source
   push: (requests, fn) =>
     requests = [requests] unless requests instanceof Array
 
-    http_options =
+    options =
       method : "PUT"
       path   : "/sources/#{@name}/requests"
       query  : requests
 
-    @http_request http_options, fn
+    @http_request options, fn
 
 
 class API.Request.Dynamic extends API.Private.Source

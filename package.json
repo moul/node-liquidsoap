@@ -1,7 +1,7 @@
 {
   "name": "liquidsoap",
   "description": "nodeJS liquidsoap stream controler.",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "homepage": "http://github.com/savonet/node-liquidsoap",
   "author": "Romain Beauxis <toots@rastageeks.org",
   "contributors": [
@@ -12,7 +12,7 @@
     }
   ],
   "scripts": {
-    "test": "cake test"
+    "test": "cake spec"
   },
   "repository":
     {

@@ -12,7 +12,7 @@ API.Private = {}
 
 class API.Private.Source
   @create: (client, opts, fn) ->
-    res = new @ client, opts
+    res = new this client, opts
 
     # Cleanup options
     delete opts.type
@@ -31,13 +31,13 @@ class API.Private.Source
       else
         delete opts.source
 
-    http_options =
+    options =
       method  : "POST"
       path    : @path
       query   : stringify opts
       expects : 201
 
-    res.http_request http_options, (err) ->
+    res.http_request options, (err) ->
         return fn err, null if err?
 
         fn null, res
@@ -48,45 +48,45 @@ class API.Private.Source
     else
       @name = opts.name ||= src.name
 
-    mixin src, @
+    mixin src, this
 
     # Do no heritate sources method.
     delete @sources
 
-    @
+    this
 
   # Generic endpoints
   skip: (fn) ->
-    http_options =
+    options =
       method : "PUT"
       path   : "/sources/#{@name}/skip"
 
-    @http_request http_options, fn
+    @http_request options, fn
 
   shutdown: (fn) ->
-    http_options =
+    options =
       method : "DELETE"
       path   : "/sources/#{@name}"
 
-    @http_request http_options, fn
+    @http_request options, fn
 
 class API.Private.Stateful extends API.Private.Source
   start: (fn) ->
-    http_options =
+    options =
       method : "PUT"
       path   : "/sources/#{@name}/start"
 
-    @http_request http_options, fn
+    @http_request options, fn
 
   stop: (fn) ->
-    http_options =
+    options =
       method : "PUT"
       path   : "/sources/#{@name}/stop"
-    @http_request http_options, fn
+    @http_request options, fn
 
   status: (fn) ->
-    http_options =
+    options =
       method : "GET"
       path   : "/sources/#{@name}/status"
 
-    @http_request http_options, fn
+    @http_request options, fn
