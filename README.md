@@ -1,7 +1,7 @@
 Liquidsoap node controler
 =========================
 
-[![Build Status](https://travis-ci.org/savonet/node-liquidsoap.png?branch=master)](https://travis-ci.org/savonet/node-liquidsoap)
+[![Build Status](https://travis-ci.org/savonet/node-liquidsoap.png?branch=master)](https://travis-ci.org/savonet/node-liquidsoap) [![GuardRails badge](https://badges.production.guardrails.io/moul/node-liquidsoap.svg)](https://www.guardrails.io)
 
 This module uses [savonet/liquidsoap-controler](https://github.com/savonet/liquidsoap-controler) to provide
 a rich and simple API to create and manipulate liquidsoap streams in nodeJS and in the browser.
